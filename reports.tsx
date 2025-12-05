@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { PieChart } from "react-native-chart-kit";
+import { BarChart, PieChart } from "react-native-chart-kit";
 
 import { Session, useSessions } from "../../hooks/useSessions";
 import { useTheme } from "../../hooks/useTheme";
@@ -53,6 +53,7 @@ export default function ReportsScreen() {
         return diff <= 7 && diff >= 0;
       }
 
+      // monthly
       return (
         d.getMonth() === now.getMonth() &&
         d.getFullYear() === now.getFullYear()
@@ -102,7 +103,40 @@ export default function ReportsScreen() {
         legendFontSize: 14,
       };
     });
-  }, [categoryTotals, totalMinutes]);
+  }, [categoryTotals, totalMinutes, theme.text]);
+
+  // -------------------------------------------
+  // SON 7 GÜN BAR CHART VERİSİ
+  // -------------------------------------------
+  const { last7DaysLabels, last7DaysMinutes } = useMemo(() => {
+    const labels: string[] = [];
+    const minutes: number[] = [];
+
+    const shortNames = ["Paz", "Pts", "Sal", "Çar", "Per", "Cum", "Cmt"];
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+
+      const label = shortNames[d.getDay()];
+
+      const total = sessions
+        .filter((s: Session) => {
+          const sd = new Date(s.date);
+          return (
+            sd.getDate() === d.getDate() &&
+            sd.getMonth() === d.getMonth() &&
+            sd.getFullYear() === d.getFullYear()
+          );
+        })
+        .reduce((sum, s) => sum + Math.round(s.duration / 60), 0);
+
+      labels.push(label);
+      minutes.push(total);
+    }
+
+    return { last7DaysLabels: labels, last7DaysMinutes: minutes };
+  }, [sessions]);
 
   // -------------------------------------------
   // EN VERİMLİ GÜN & SAAT
@@ -181,7 +215,7 @@ export default function ReportsScreen() {
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={{ paddingBottom: 60 }}
     >
-      {/* SEKMEYİ AŞAĞI ALDIK */}
+      {/* SEKME BOŞLUĞU */}
       <View style={{ height: 50 }} />
 
       <View style={styles.modeTabs}>
@@ -210,89 +244,125 @@ export default function ReportsScreen() {
         ))}
       </View>
 
-     {/* KATEGORİ DAĞILIMI */}
-<View style={[styles.card, { backgroundColor: theme.card }]}>
-  <Text style={[styles.cardTitle, { color: theme.text }]}>
-    Kategori Dağılımı ({modeLabel})
-  </Text>
+     
+      {/* KATEGORİ DAĞILIMI */}
+      <View style={[styles.card, { backgroundColor: theme.card }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>
+          Kategori Dağılımı ({modeLabel})
+        </Text>
 
-  <View
-    style={{
-      flexDirection: "row",
-      alignItems: "center",
-      width: "100%",
-    }}
-  >
-    {/* --- Pie Chart --- */}
-    <PieChart
-      data={pieData.map((p) => ({
-        name: p.name,
-        population: p.population,
-        color: p.color,
-        legendFontColor: theme.text,
-        legendFontSize: 12,
-      }))}
-      width={screenWidth * 0.50}   // biraz büyütüldü
-      height={210}
-      accessor="population"
-      backgroundColor="transparent"
-      paddingLeft="40"              // sola yapışmıyor artık
-      hasLegend={false}
-      chartConfig={{
-        backgroundGradientFrom: "transparent",
-        backgroundGradientTo: "transparent",
-        color: () => theme.text,
-        labelColor: () => theme.text,
-      }}
-      style={{
-        marginLeft: 0,              // kesilmeyi kaldıran ayar
-      }}
-    />
-
-    {/* --- Sağdaki Yüzdelik Liste + Yuvarlak Renk Noktası --- */}
-    <View
-      style={{
-        marginLeft: 15,
-        minWidth: screenWidth * 0.33,
-        paddingRight: 8,
-      }}
-    >
-      {pieData.map((item) => (
         <View
-          key={item.name}
           style={{
             flexDirection: "row",
             alignItems: "center",
-            marginBottom: 12,
+            width: "100%",
           }}
         >
-          {/* Renkli Nokta */}
-          <View
+          {/* --- Pie Chart --- */}
+          <PieChart
+            data={pieData.map((p) => ({
+              name: p.name,
+              population: p.population,
+              color: p.color,
+              legendFontColor: theme.text,
+              legendFontSize: 12,
+            }))}
+            width={screenWidth * 0.5}
+            height={210}
+            accessor="population"
+            backgroundColor="transparent"
+            paddingLeft="40"
+            hasLegend={false}
+            chartConfig={{
+              backgroundGradientFrom: "transparent",
+              backgroundGradientTo: "transparent",
+              color: () => theme.text,
+              labelColor: () => theme.text,
+            }}
             style={{
-              width: 12,
-              height: 12,
-              borderRadius: 6,
-              backgroundColor: item.color,
-              marginRight: 8,
+              marginLeft: 0,
             }}
           />
 
-          {/* Yüzdelik + kategori adı */}
-          <Text
+          {/* --- Sağdaki Yüzdelik Liste + Renk Noktası --- */}
+          <View
             style={{
-              color: theme.text,
-              fontSize: 16,
-              fontWeight: "600",
+              marginLeft: 15,
+              minWidth: screenWidth * 0.33,
+              paddingRight: 8,
             }}
           >
-            %{item.pct} {item.name}
-          </Text>
+            {pieData.map((item) => (
+              <View
+                key={item.name}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <View
+                  style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: item.color,
+                    marginRight: 8,
+                  }}
+                />
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontSize: 16,
+                    fontWeight: "600",
+                  }}
+                >
+                  %{item.pct} {item.name}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
-      ))}
-    </View>
-  </View>
-</View>
+      </View>
 
+
+{/* SON 7 GÜN ÇUBUK GRAFİĞİ */}
+      <View style={[styles.card, { backgroundColor: theme.card }]}>
+        <Text style={[styles.cardTitle, { color: theme.text }]}>
+          Son 7 Günlük Odak Süresi
+        </Text>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+        >
+          <BarChart
+            data={{
+              labels: last7DaysLabels,
+              datasets: [
+                { 
+                  data: last7DaysMinutes,
+                  // ÇUBUKLARIN RENGİNİ BEYAZ VE TAMAMEN OPAK YAPAR
+                  color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, 
+                }
+              ],
+            }}
+            width={screenWidth * 1.5}
+            height={220}
+            fromZero
+            yAxisLabel=""
+            yAxisSuffix=" dk"
+            chartConfig={{
+              backgroundGradientFrom: theme.card,
+              backgroundGradientTo: theme.card,
+              color: () => theme.text,
+              labelColor: () => theme.text,
+              decimalPlaces: 0,
+            }}
+            style={{ marginLeft: -16 }}
+          />
+        </ScrollView>
+      </View>
 
       {/* ANALİZ KARTI */}
       <View style={[styles.card, { backgroundColor: theme.card }]}>
